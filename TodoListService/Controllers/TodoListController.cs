@@ -14,11 +14,8 @@
 //    limitations under the License.
 //----------------------------------------------------------------------------------------------
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Web.Http;
 
 // The following using statements were added for this sample.
@@ -29,35 +26,15 @@ using System.Security.Claims;
 namespace TodoListService.Controllers
 {
     [Authorize]
-    public class TodoListController : ApiController
+    public class TodoListController : ClaimsControllerBase
     {
         //
         // To Do items list for all users.  Since the list is stored in memory, it will go away if the service is cycled.
         //
         static ConcurrentBag<TodoItem> todoBag = new ConcurrentBag<TodoItem>();
-
-        private ClaimsIdentity userClaims;
-
+        
         public TodoListController()
         {
-            userClaims = User.Identity as ClaimsIdentity;
-        }
-
-        /// <summary>
-        /// Assure the presence of a scope claim containing a specific scope (i.e. access_as_user)
-        /// </summary>
-        /// <param name="scopeName">The name of the scope</param>
-        private void CheckAccessTokenScope(string scopeName)
-        {
-            // Make sure access_as_user scope is present
-            string scopeClaimValue = userClaims.FindFirst("http://schemas.microsoft.com/identity/claims/scope")?.Value;
-            if (!string.Equals(scopeClaimValue, scopeName, StringComparison.InvariantCultureIgnoreCase))
-            {
-                throw new HttpResponseException(new HttpResponseMessage(HttpStatusCode.Forbidden)
-                {
-                    ReasonPhrase = @"Please request an access token to scope '{scopeName}'"
-                });
-            }
         }
 
         // GET api/todolist
@@ -71,7 +48,7 @@ namespace TodoListService.Controllers
             // the NameIdentififier claim contains an immutable, unique identifier for the use
             
             Claim subject = ClaimsPrincipal.Current.FindFirst(ClaimTypes.NameIdentifier);
-
+            
             return from todo in todoBag
                    where todo.Owner == subject.Value
                    select todo;

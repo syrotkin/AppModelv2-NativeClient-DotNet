@@ -26,6 +26,14 @@
                 </Button.Style>
 
             </Button>
+            <Button HorizontalAlignment="Right" Content="Test" Margin="0" Padding="5" Click="Test" x:Name="TestButton" Width="80" Height="30">
+                <Button.Style>
+                    <Style TargetType="{x:Type Button}">
+                        <!-- "<Setter Property="IsEnabled" Value="False" /> -->
+                    </Style>
+                </Button.Style>
+
+            </Button>
             <GroupBox Margin="0,0,0,0" Header="Create a To Do item">
 
                 <Grid Margin="0" HorizontalAlignment="Left" Width="388" >

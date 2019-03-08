@@ -91,12 +91,7 @@ namespace TodoListClient
                 else
                 {
                     // Here, we catch all other MsalExceptions
-                    string message = ex.Message;
-                    if (ex.InnerException != null)
-                    {
-                        message += "Inner Exception : " + ex.InnerException.Message;
-                    }
-                    MessageBox.Show(message);
+                    DisplayInnerException(ex);
                 }
             }
         }
@@ -114,37 +109,9 @@ namespace TodoListClient
             // it to the GET request in the Authorization
             // header.
 
-            AuthenticationResult result = null;
-            try
+            AuthenticationResult result = await TryAuthenticateAsync();
+            if (result == null)
             {
-                // Here, we try to get an access token to call the TodoListService
-                // without invoking any UI prompt.  AcquireTokenSilentAsync forces
-                // MSAL to throw an exception if it cannot get a token silently.
-                var accounts = await app.GetAccountsAsync();
-                result = await app.AcquireTokenSilentAsync(Scopes, accounts.FirstOrDefault());
-            }
-            catch (MsalException ex)
-            {
-                // MSAL couldn't get a token silently, so show the user a message
-                // and let them click the Sign-In button.
-
-                if (ex.ErrorCode == "failed_to_acquire_token_silently")
-                {
-                    MessageBox.Show("Please sign in first");
-                    SignInButton.Content = "Sign In";
-                }
-                else
-                {
-                    // In any other case, an unexpected error occurred.
-
-                    string message = ex.Message;
-                    if (ex.InnerException != null)
-                    {
-                        message += "Inner Exception : " + ex.InnerException.Message;
-                    }
-                    MessageBox.Show(message);
-                }
-
                 return;
             }
 
@@ -172,6 +139,16 @@ namespace TodoListClient
             return;
         }
 
+        private static void DisplayInnerException(MsalException ex)
+        {
+            string message = ex.Message;
+            if (ex.InnerException != null)
+            {
+                message += "Inner Exception : " + ex.InnerException.Message;
+            }
+            MessageBox.Show(message);
+        }
+
         private async void AddTodoItem(object sender, RoutedEventArgs e)
         {
             // This method follows the same pattern as GetTodoList()
@@ -182,30 +159,9 @@ namespace TodoListClient
                 return;
             }
 
-            AuthenticationResult result = null;
-            try
+            AuthenticationResult result = await TryAuthenticateAsync();
+            if (result == null)
             {
-                var accounts = await app.GetAccountsAsync();
-                result = await app.AcquireTokenSilentAsync(Scopes, accounts.FirstOrDefault());
-            }
-            catch (MsalException ex)
-            {
-                if (ex.ErrorCode == "failed_to_acquire_token_silently")
-                {
-                    MessageBox.Show("Please sign in first");
-                    SignInButton.Content = "Sign In";
-                }
-                else
-                {
-                    string message = ex.Message;
-                    if (ex.InnerException != null)
-                    {
-                        message += "Inner Exception : " + ex.InnerException.Message;
-                    }
-
-                    MessageBox.Show(message);
-                }
-
                 return;
             }
 
@@ -225,6 +181,33 @@ namespace TodoListClient
             }
         }
 
+        private async Task<AuthenticationResult> TryAuthenticateAsync()
+        {
+            try
+            {
+                // Here, we try to get an access token to call the TodoListService
+                // without invoking any UI prompt.  AcquireTokenSilentAsync forces
+                // MSAL to throw an exception if it cannot get a token silently.
+                var accounts = await app.GetAccountsAsync();
+                return await app.AcquireTokenSilentAsync(Scopes, accounts.FirstOrDefault());
+            }
+            catch (MsalException ex)
+            {
+                if (ex.ErrorCode == "failed_to_acquire_token_silently")
+                {
+                    MessageBox.Show("Please sign in first");
+                    SignInButton.Content = "Sign In";
+                }
+                else
+                {
+                    // In any other case, an unexpected error occurred.
+                    DisplayInnerException(ex);
+                }
+
+                return null;
+            }
+        }
+
         /// <summary>
         /// Clears the cache
         /// </summary>
@@ -238,6 +221,35 @@ namespace TodoListClient
                 accounts = await app.GetAccountsAsync();
             }
         }
+
+        /// <summary>
+        /// Calls the GET api/test API. 
+        /// If the call succeeds, the username of the logged in user is displayed in the 
+        /// </summary>
+        private async void Test(object sender, RoutedEventArgs args = null)
+        {
+            var result = await TryAuthenticateAsync();
+            if (result == null)
+            {
+                return;
+            }
+
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+
+            // Call the To Do list service.
+            HttpResponseMessage response = await httpClient.GetAsync(todoListServiceBaseAddress + "/api/test");
+
+            if (response.IsSuccessStatusCode)
+            {
+                string stringContent = await response.Content.ReadAsStringAsync();
+                TodoList.ItemsSource = new[] { new { Title = stringContent.Trim('"') } };
+            }
+            else
+            {
+                MessageBox.Show("An error occurred : " + response.ReasonPhrase);
+            }
+        }
+
         private async void SignIn(object sender = null, RoutedEventArgs args = null)
         {
             // TODO: Sign the user out if they clicked the "Clear Cache" button
@@ -279,13 +291,7 @@ namespace TodoListClient
                 }
                 else
                 {
-                    string message = ex.Message;
-                    if (ex.InnerException != null)
-                    {
-                        message += "Inner Exception : " + ex.InnerException.Message;
-                    }
-
-                    MessageBox.Show(message);
+                    DisplayInnerException(ex);
                 }
 
                 return;
